@@ -1,0 +1,618 @@
+command_line:
+  - sensor:
+      name: "UDM WAN Health Raw"
+      unique_id: udm_wan_health_raw
+      scan_interval: 60
+      command_timeout: 15
+      command: "/config/scripts/get_wan_health.sh"
+      value_template: >
+        {% if value_json.status is defined %}
+          {{ value_json.status }}
+        {% else %}
+          unknown
+        {% endif %}
+      json_attributes:
+        - wan_ip
+        - status
+        - uptime_stats
+        - isp_name
+        - tx_bytes-r
+        - rx_bytes-r
+
+  - sensor:
+      name: "UDM WAN Config Raw"
+      unique_id: udm_wan_config_raw
+      scan_interval: 300
+      command_timeout: 15
+      command: "/config/scripts/get_wan_config.sh"
+      value_template: >
+        {% if value_json.data is defined %}
+          {{ value_json.data | length }} WANs
+        {% else %}
+          unknown
+        {% endif %}
+      json_attributes:
+        - data
+
+template:
+  - binary_sensor:
+      - name: "UDM WAN API Fresh"
+        unique_id: udm_wan_api_fresh
+        device_class: connectivity
+        state: >
+          {% set max_age = 180 %}
+          {% set ts = as_timestamp(states.sensor.udm_wan_health_raw.last_updated)
+               if states.sensor.udm_wan_health_raw is defined else 0 %}
+          {{ ts > 0 and (as_timestamp(now()) - ts) < max_age }}
+        attributes:
+          age_seconds: >
+            {% set ts = as_timestamp(states.sensor.udm_wan_health_raw.last_updated)
+                 if states.sensor.udm_wan_health_raw is defined else 0 %}
+            {% if ts > 0 %}
+              {{ (as_timestamp(now()) - ts) | int }}
+            {% else %}
+              9999
+            {% endif %}
+            
+      - name: "WAN1 Online Raw"
+        unique_id: wan1_online_api_raw
+        device_class: connectivity
+        state: >
+          {% set health = state_attr('sensor.udm_wan_health_raw', 'uptime_stats') %}
+          {% set w = health.WAN if health and health.WAN is defined else none %}
+          {% if w is not none %}
+            {% set avail = w.availability | float(0) %}
+            {% set uptime = w.uptime | int(0) %}
+            {% set lat = w.latency_average | float(0) %}
+            {{ avail > 0 or uptime > 0 or lat > 0 }}
+          {% else %}
+            {% if this is defined and this.state in ['on', 'off'] %}
+              {{ this.state }}
+            {% else %}
+              false
+            {% endif %}
+          {% endif %}
+        attributes:
+          availability: >
+            {% set health = state_attr('sensor.udm_wan_health_raw', 'uptime_stats') %}
+            {% set w = health.WAN if health and health.WAN is defined else none %}
+            {% if w is not none %}
+              {{ w.availability | float(0) }}
+            {% elif this is defined and this.attributes is defined %}
+              {{ this.attributes.get('availability', 0) }}
+            {% else %}
+              0
+            {% endif %}
+          latency_avg: >
+            {% set health = state_attr('sensor.udm_wan_health_raw', 'uptime_stats') %}
+            {% set w = health.WAN if health and health.WAN is defined else none %}
+            {% if w is not none %}
+              {{ w.latency_average | float(0) }}
+            {% elif this is defined and this.attributes is defined %}
+              {{ this.attributes.get('latency_avg', 0) }}
+            {% else %}
+              0
+            {% endif %}
+          uptime: >
+            {% set health = state_attr('sensor.udm_wan_health_raw', 'uptime_stats') %}
+            {% set w = health.WAN if health and health.WAN is defined else none %}
+            {% if w is not none %}
+              {{ w.uptime | int(0) }}
+            {% elif this is defined and this.attributes is defined %}
+              {{ this.attributes.get('uptime', 0) }}
+            {% else %}
+              0
+            {% endif %}
+
+      - name: "WAN2 Online Raw"
+        unique_id: wan2_online_api_raw
+        device_class: connectivity
+        state: >
+          {% set health = state_attr('sensor.udm_wan_health_raw', 'uptime_stats') %}
+          {% set w = health.WAN2 if health and health.WAN2 is defined else none %}
+          {% if w is not none %}
+            {% set avail = w.availability | float(0) %}
+            {% set uptime = w.uptime | int(0) %}
+            {% set lat = w.latency_average | float(0) %}
+            {{ avail > 0 or uptime > 0 or lat > 0 }}
+          {% else %}
+            {% if this is defined and this.state in ['on', 'off'] %}
+              {{ this.state }}
+            {% else %}
+              false
+            {% endif %}
+          {% endif %}
+        attributes:
+          availability: >
+            {% set health = state_attr('sensor.udm_wan_health_raw', 'uptime_stats') %}
+            {% set w = health.WAN2 if health and health.WAN2 is defined else none %}
+            {% if w is not none %}
+              {{ w.availability | float(0) }}
+            {% elif this is defined and this.attributes is defined %}
+              {{ this.attributes.get('availability', 0) }}
+            {% else %}
+              0
+            {% endif %}
+          latency_avg: >
+            {% set health = state_attr('sensor.udm_wan_health_raw', 'uptime_stats') %}
+            {% set w = health.WAN2 if health and health.WAN2 is defined else none %}
+            {% if w is not none %}
+              {{ w.latency_average | float(0) }}
+            {% elif this is defined and this.attributes is defined %}
+              {{ this.attributes.get('latency_avg', 0) }}
+            {% else %}
+              0
+            {% endif %}
+          uptime: >
+            {% set health = state_attr('sensor.udm_wan_health_raw', 'uptime_stats') %}
+            {% set w = health.WAN2 if health and health.WAN2 is defined else none %}
+            {% if w is not none %}
+              {{ w.uptime | int(0) }}
+            {% elif this is defined and this.attributes is defined %}
+              {{ this.attributes.get('uptime', 0) }}
+            {% else %}
+              0
+            {% endif %}
+
+      - name: "WAN1 Online"
+        unique_id: wan1_online_api
+        device_class: connectivity
+        delay_on:
+          seconds: 65
+        delay_off:
+          seconds: 65
+        state: "{{ is_state('binary_sensor.wan1_online_raw', 'on') }}"
+        attributes:
+          availability: "{{ state_attr('binary_sensor.wan1_online_raw', 'availability') }}"
+          latency_avg: "{{ state_attr('binary_sensor.wan1_online_raw', 'latency_avg') }}"
+          uptime: "{{ state_attr('binary_sensor.wan1_online_raw', 'uptime') }}"
+
+      - name: "WAN2 Online"
+        unique_id: wan2_online_api
+        device_class: connectivity
+        delay_on:
+          seconds: 65
+        delay_off:
+          seconds: 65
+        state: "{{ is_state('binary_sensor.wan2_online_raw', 'on') }}"
+        attributes:
+          availability: "{{ state_attr('binary_sensor.wan2_online_raw', 'availability') }}"
+          latency_avg: "{{ state_attr('binary_sensor.wan2_online_raw', 'latency_avg') }}"
+          uptime: "{{ state_attr('binary_sensor.wan2_online_raw', 'uptime') }}"
+
+  - sensor:
+      - name: "WAN1 Configuration"
+        unique_id: wan1_configuration
+        icon: mdi:ethernet
+        state: >
+          {% set data = state_attr('sensor.udm_wan_config_raw', 'data') %}
+          {% set data_valid = data is iterable and (data | length) > 0 %}
+          {% if data_valid %}
+            {% set wan1 = data | selectattr('wan_networkgroup', 'equalto', 'WAN') | list | first %}
+            {{ wan1.name if wan1 else 'Not configured' }}
+          {% else %}
+            {% if this is defined and this.state not in ['unknown', 'unavailable', ''] %}
+              {{ this.state }}
+            {% else %}
+              unknown
+            {% endif %}
+          {% endif %}
+        attributes:
+          name: >
+            {% set data = state_attr('sensor.udm_wan_config_raw', 'data') %}
+            {% set data_valid = data is iterable and (data | length) > 0 %}
+            {% if data_valid %}
+              {% set wan1 = data | selectattr('wan_networkgroup', 'equalto', 'WAN') | list | first %}
+              {{ wan1.name if wan1 else 'N/A' }}
+            {% elif this is defined and this.attributes is defined %}
+              {{ this.attributes.get('name', 'N/A') }}
+            {% else %}
+              N/A
+            {% endif %}
+          type: >
+            {% set data = state_attr('sensor.udm_wan_config_raw', 'data') %}
+            {% set data_valid = data is iterable and (data | length) > 0 %}
+            {% if data_valid %}
+              {% set wan1 = data | selectattr('wan_networkgroup', 'equalto', 'WAN') | list | first %}
+              {{ wan1.wan_type if wan1 else 'N/A' }}
+            {% elif this is defined and this.attributes is defined %}
+              {{ this.attributes.get('type', 'N/A') }}
+            {% else %}
+              N/A
+            {% endif %}
+          ip: >
+            {% set data = state_attr('sensor.udm_wan_config_raw', 'data') %}
+            {% set data_valid = data is iterable and (data | length) > 0 %}
+            {% if data_valid %}
+              {% set wan1 = data | selectattr('wan_networkgroup', 'equalto', 'WAN') | list | first %}
+              {{ wan1.wan_ip if wan1 else 'N/A' }}
+            {% elif this is defined and this.attributes is defined %}
+              {{ this.attributes.get('ip', 'N/A') }}
+            {% else %}
+              N/A
+            {% endif %}
+          gateway: >
+            {% set data = state_attr('sensor.udm_wan_config_raw', 'data') %}
+            {% set data_valid = data is iterable and (data | length) > 0 %}
+            {% if data_valid %}
+              {% set wan1 = data | selectattr('wan_networkgroup', 'equalto', 'WAN') | list | first %}
+              {{ wan1.wan_gateway if wan1 else 'N/A' }}
+            {% elif this is defined and this.attributes is defined %}
+              {{ this.attributes.get('gateway', 'N/A') }}
+            {% else %}
+              N/A
+            {% endif %}
+          load_balance_type: >
+            {% set data = state_attr('sensor.udm_wan_config_raw', 'data') %}
+            {% set data_valid = data is iterable and (data | length) > 0 %}
+            {% if data_valid %}
+              {% set wan1 = data | selectattr('wan_networkgroup', 'equalto', 'WAN') | list | first %}
+              {{ wan1.wan_load_balance_type if wan1 else 'N/A' }}
+            {% elif this is defined and this.attributes is defined %}
+              {{ this.attributes.get('load_balance_type', 'N/A') }}
+            {% else %}
+              N/A
+            {% endif %}
+          failover_priority: >
+            {% set data = state_attr('sensor.udm_wan_config_raw', 'data') %}
+            {% set data_valid = data is iterable and (data | length) > 0 %}
+            {% if data_valid %}
+              {% set wan1 = data | selectattr('wan_networkgroup', 'equalto', 'WAN') | list | first %}
+              {{ wan1.wan_failover_priority if wan1 else 'N/A' }}
+            {% elif this is defined and this.attributes is defined %}
+              {{ this.attributes.get('failover_priority', 'N/A') }}
+            {% else %}
+              N/A
+            {% endif %}
+          weight: >
+            {% set data = state_attr('sensor.udm_wan_config_raw', 'data') %}
+            {% set data_valid = data is iterable and (data | length) > 0 %}
+            {% if data_valid %}
+              {% set wan1 = data | selectattr('wan_networkgroup', 'equalto', 'WAN') | list | first %}
+              {{ wan1.wan_load_balance_weight if wan1 else 'N/A' }}
+            {% elif this is defined and this.attributes is defined %}
+              {{ this.attributes.get('weight', 'N/A') }}
+            {% else %}
+              N/A
+            {% endif %}
+
+      - name: "WAN2 Configuration"
+        unique_id: wan2_configuration
+        icon: mdi:satellite-uplink
+        state: >
+          {% set data = state_attr('sensor.udm_wan_config_raw', 'data') %}
+          {% set data_valid = data is iterable and (data | length) > 0 %}
+          {% if data_valid %}
+            {% set wan2 = data | selectattr('wan_networkgroup', 'equalto', 'WAN2') | list | first %}
+            {{ wan2.name if wan2 else 'Not configured' }}
+          {% else %}
+            {% if this is defined and this.state not in ['unknown', 'unavailable', ''] %}
+              {{ this.state }}
+            {% else %}
+              unknown
+            {% endif %}
+          {% endif %}
+        attributes:
+          name: >
+            {% set data = state_attr('sensor.udm_wan_config_raw', 'data') %}
+            {% set data_valid = data is iterable and (data | length) > 0 %}
+            {% if data_valid %}
+              {% set wan2 = data | selectattr('wan_networkgroup', 'equalto', 'WAN2') | list | first %}
+              {{ wan2.name if wan2 else 'N/A' }}
+            {% elif this is defined and this.attributes is defined %}
+              {{ this.attributes.get('name', 'N/A') }}
+            {% else %}
+              N/A
+            {% endif %}
+          type: >
+            {% set data = state_attr('sensor.udm_wan_config_raw', 'data') %}
+            {% set data_valid = data is iterable and (data | length) > 0 %}
+            {% if data_valid %}
+              {% set wan2 = data | selectattr('wan_networkgroup', 'equalto', 'WAN2') | list | first %}
+              {{ wan2.wan_type if wan2 else 'N/A' }}
+            {% elif this is defined and this.attributes is defined %}
+              {{ this.attributes.get('type', 'N/A') }}
+            {% else %}
+              N/A
+            {% endif %}
+          ip: >
+            {% set data = state_attr('sensor.udm_wan_config_raw', 'data') %}
+            {% set data_valid = data is iterable and (data | length) > 0 %}
+            {% if data_valid %}
+              {% set wan2 = data | selectattr('wan_networkgroup', 'equalto', 'WAN2') | list | first %}
+              {{ wan2.wan_ip if wan2 else 'N/A' }}
+            {% elif this is defined and this.attributes is defined %}
+              {{ this.attributes.get('ip', 'N/A') }}
+            {% else %}
+              N/A
+            {% endif %}
+          gateway: >
+            {% set data = state_attr('sensor.udm_wan_config_raw', 'data') %}
+            {% set data_valid = data is iterable and (data | length) > 0 %}
+            {% if data_valid %}
+              {% set wan2 = data | selectattr('wan_networkgroup', 'equalto', 'WAN2') | list | first %}
+              {{ wan2.wan_gateway if wan2 else 'N/A' }}
+            {% elif this is defined and this.attributes is defined %}
+              {{ this.attributes.get('gateway', 'N/A') }}
+            {% else %}
+              N/A
+            {% endif %}
+          load_balance_type: >
+            {% set data = state_attr('sensor.udm_wan_config_raw', 'data') %}
+            {% set data_valid = data is iterable and (data | length) > 0 %}
+            {% if data_valid %}
+              {% set wan2 = data | selectattr('wan_networkgroup', 'equalto', 'WAN2') | list | first %}
+              {{ wan2.wan_load_balance_type if wan2 else 'N/A' }}
+            {% elif this is defined and this.attributes is defined %}
+              {{ this.attributes.get('load_balance_type', 'N/A') }}
+            {% else %}
+              N/A
+            {% endif %}
+          failover_priority: >
+            {% set data = state_attr('sensor.udm_wan_config_raw', 'data') %}
+            {% set data_valid = data is iterable and (data | length) > 0 %}
+            {% if data_valid %}
+              {% set wan2 = data | selectattr('wan_networkgroup', 'equalto', 'WAN2') | list | first %}
+              {{ wan2.wan_failover_priority if wan2 else 'N/A' }}
+            {% elif this is defined and this.attributes is defined %}
+              {{ this.attributes.get('failover_priority', 'N/A') }}
+            {% else %}
+              N/A
+            {% endif %}
+          weight: >
+            {% set data = state_attr('sensor.udm_wan_config_raw', 'data') %}
+            {% set data_valid = data is iterable and (data | length) > 0 %}
+            {% if data_valid %}
+              {% set wan2 = data | selectattr('wan_networkgroup', 'equalto', 'WAN2') | list | first %}
+              {{ wan2.wan_load_balance_weight if wan2 else 'N/A' }}
+            {% elif this is defined and this.attributes is defined %}
+              {{ this.attributes.get('weight', 'N/A') }}
+            {% else %}
+              N/A
+            {% endif %}
+
+      - name: "WAN1 Latency Raw"
+        unique_id: wan1_latency_raw
+        unit_of_measurement: "ms"
+        state_class: measurement
+        icon: mdi:timer-outline
+        state: >
+          {% set v = state_attr('binary_sensor.wan1_online_api', 'latency_avg') | float(0) %}
+          {% if is_state('binary_sensor.wan1_online_api', 'on') and v > 0 %}
+            {{ v }}
+          {% else %}
+            {{ this.state if this is defined and this.state not in ['unknown','unavailable',''] else 12 }}
+          {% endif %}
+
+      - name: "WAN2 Latency Raw"
+        unique_id: wan2_latency_raw
+        unit_of_measurement: "ms"
+        state_class: measurement
+        icon: mdi:timer-outline
+        state: >
+          {% set v = state_attr('binary_sensor.wan2_online_api', 'latency_avg') | float(0) %}
+          {% if is_state('binary_sensor.wan2_online_api', 'on') and v > 0 %}
+            {{ v }}
+          {% else %}
+            {{ this.state if this is defined and this.state not in ['unknown','unavailable',''] else 30 }}
+          {% endif %}
+
+      - name: "WAN1 Expected Latency"
+        unique_id: wan1_expected_latency
+        unit_of_measurement: "ms"
+        state: >
+          {{ states('sensor.wan1_latency_baseline') | float(12) | round(1) }}
+
+      - name: "WAN2 Expected Latency"
+        unique_id: wan2_expected_latency
+        unit_of_measurement: "ms"
+        state: >
+          {{ states('sensor.wan2_latency_baseline') | float(30) | round(1) }}
+          
+      - name: "WAN1 Stability Score"
+        unique_id: wan1_stability_score
+        unit_of_measurement: "%"
+        icon: mdi:shield-check
+        state: >
+          {% set avail = state_attr('binary_sensor.wan1_online_api', 'availability') | float(0) %}
+          {% set lat = state_attr('binary_sensor.wan1_online_api', 'latency_avg') | float(0) %}
+          {% set expected = states('sensor.wan1_expected_latency') | float(12) %}
+          {% set online = is_state('binary_sensor.wan1_online_api', 'on') %}
+
+          {% set avail_score = avail * 0.60 %}
+
+          {% if expected > 0 %}
+            {% set deviation = lat / expected %}
+            {% set lat_score_raw = 100 - ((deviation - 1) * 100) %}
+          {% else %}
+            {% set lat_score_raw = 100 %}
+          {% endif %}
+
+          {% set lat_score = [[lat_score_raw, 0] | max, 100] | min %}
+          {% set lat_score_weighted = lat_score * 0.25 %}
+          {% set online_score = 15 if online else 0 %}
+
+          {% set total = avail_score + lat_score_weighted + online_score %}
+          {{ [[total, 0] | max, 100] | min | round(0) }}
+        attributes:
+          availability: "{{ state_attr('binary_sensor.wan1_online_api', 'availability') | float(0) }}"
+          latency_avg: "{{ state_attr('binary_sensor.wan1_online_api', 'latency_avg') | float(0) }}"
+          expected_latency: "{{ states('sensor.wan1_expected_latency') | float(12) }}"
+          latency_deviation: >
+            {% set lat = state_attr('binary_sensor.wan1_online_api', 'latency_avg') | float(0) %}
+            {% set expected = states('sensor.wan1_expected_latency') | float(12) %}
+            {% if expected > 0 %}
+              {{ (lat / expected) | round(2) }}
+            {% else %}
+              0
+            {% endif %}
+          online: "{{ is_state('binary_sensor.wan1_online_api', 'on') }}"
+          
+      - name: "WAN2 Stability Score"
+        unique_id: wan2_stability_score
+        unit_of_measurement: "%"
+        icon: mdi:shield-check
+        state: >
+          {% set avail = state_attr('binary_sensor.wan2_online_api', 'availability') | float(0) %}
+          {% set lat = state_attr('binary_sensor.wan2_online_api', 'latency_avg') | float(0) %}
+          {% set expected = states('sensor.wan2_expected_latency') | float(30) %}
+          {% set online = is_state('binary_sensor.wan2_online_api', 'on') %}
+
+          {% set avail_score = avail * 0.60 %}
+
+          {% if expected > 0 %}
+            {% set deviation = lat / expected %}
+            {% set lat_score_raw = 100 - ((deviation - 1) * 100) %}
+          {% else %}
+            {% set lat_score_raw = 100 %}
+          {% endif %}
+
+          {% set lat_score = [[lat_score_raw, 0] | max, 100] | min %}
+          {% set lat_score_weighted = lat_score * 0.25 %}
+          {% set online_score = 15 if online else 0 %}
+
+          {% set total = avail_score + lat_score_weighted + online_score %}
+          {{ [[total, 0] | max, 100] | min | round(0) }}
+        attributes:
+          availability: "{{ state_attr('binary_sensor.wan2_online_api', 'availability') | float(0) }}"
+          latency_avg: "{{ state_attr('binary_sensor.wan2_online_api', 'latency_avg') | float(0) }}"
+          expected_latency: "{{ states('sensor.wan2_expected_latency') | float(30) }}"
+          latency_deviation: >
+            {% set lat = state_attr('binary_sensor.wan2_online_api', 'latency_avg') | float(0) %}
+            {% set expected = states('sensor.wan2_expected_latency') | float(30) %}
+            {% if expected > 0 %}
+              {{ (lat / expected) | round(2) }}
+            {% else %}
+              0
+            {% endif %}
+          online: "{{ is_state('binary_sensor.wan2_online_api', 'on') }}"
+
+      - name: "Internet Routing Mode"
+        unique_id: internet_routing_mode_api
+        icon: mdi:wan
+        state: >
+          {% if is_state('binary_sensor.udm_wan_api_fresh', 'off') %}
+            STALE
+          {% else %}
+            {% set data = state_attr('sensor.udm_wan_config_raw', 'data') %}
+            {% set health = state_attr('sensor.udm_wan_health_raw', 'uptime_stats') %}
+            {% set health_valid = health and (health.WAN is defined or health.WAN2 is defined) %}
+            {% set data_valid = data is iterable and (data | length) > 0 %}
+            {% if not health_valid or not data_valid %}
+              {% if this is defined and this.state not in ['unknown', 'unavailable', ''] %}
+                {{ this.state }}
+              {% else %}
+                UNKNOWN
+              {% endif %}
+            {% else %}
+              {% set wan1_online = is_state('binary_sensor.wan1_online_api', 'on') %}
+              {% set wan2_online = is_state('binary_sensor.wan2_online_api', 'on') %}
+              {% set wan1 = data | selectattr('wan_networkgroup', 'equalto', 'WAN') | list | first %}
+              {% set wan2 = data | selectattr('wan_networkgroup', 'equalto', 'WAN2') | list | first %}
+              {% if not wan1_online and not wan2_online %}
+                OFFLINE
+              {% elif wan1_online and wan2_online %}
+                {% set wan1_lb = wan1.wan_load_balance_type if wan1 else '' %}
+                {% set wan2_lb = wan2.wan_load_balance_type if wan2 else '' %}
+                {% if wan1_lb == 'weighted' and wan2_lb == 'weighted' %}
+                  BALANCED
+                {% else %}
+                  {% set wan1_prio = wan1.wan_failover_priority if wan1 else 999 %}
+                  {% set wan2_prio = wan2.wan_failover_priority if wan2 else 999 %}
+                  {% if wan1_prio < wan2_prio %}
+                    WAN1
+                  {% else %}
+                    WAN2
+                  {% endif %}
+                {% endif %}
+              {% elif wan1_online %}
+                WAN1
+              {% elif wan2_online %}
+                WAN2
+              {% else %}
+                UNKNOWN
+              {% endif %}
+            {% endif %}
+          {% endif %}
+        attributes:
+          wan1_name: >
+            {% set data = state_attr('sensor.udm_wan_config_raw', 'data') %}
+            {% set data_valid = data is iterable and (data | length) > 0 %}
+            {% if data_valid %}
+              {% set wan1 = data | selectattr('wan_networkgroup', 'equalto', 'WAN') | list | first %}
+              {{ wan1.name if wan1 else 'WAN1' }}
+            {% elif this is defined and this.attributes is defined %}
+              {{ this.attributes.get('wan1_name', 'WAN1') }}
+            {% else %}
+              WAN1
+            {% endif %}
+          wan2_name: >
+            {% set data = state_attr('sensor.udm_wan_config_raw', 'data') %}
+            {% set data_valid = data is iterable and (data | length) > 0 %}
+            {% if data_valid %}
+              {% set wan2 = data | selectattr('wan_networkgroup', 'equalto', 'WAN2') | list | first %}
+              {{ wan2.name if wan2 else 'WAN2' }}
+            {% elif this is defined and this.attributes is defined %}
+              {{ this.attributes.get('wan2_name', 'WAN2') }}
+            {% else %}
+              WAN2
+            {% endif %}
+          wan1_online: "{{ is_state('binary_sensor.wan1_online_api', 'on') }}"
+          wan2_online: "{{ is_state('binary_sensor.wan2_online_api', 'on') }}"
+          wan1_availability: "{{ state_attr('binary_sensor.wan1_online_api', 'availability') }}"
+          wan2_availability: "{{ state_attr('binary_sensor.wan2_online_api', 'availability') }}"
+          wan1_latency: "{{ state_attr('binary_sensor.wan1_online_api', 'latency_avg') }}"
+          wan2_latency: "{{ state_attr('binary_sensor.wan2_online_api', 'latency_avg') }}"
+          wan1_mbps: "{{ states('sensor.udm_wan1_total_mbps_smoothed') | float(0) | round(2) }}"
+          wan2_mbps: "{{ states('sensor.udm_wan2_total_mbps_smoothed') | float(0) | round(2) }}"
+          detail: >
+            {% set mode = states('sensor.internet_routing_mode_api') %}
+            {% set data = state_attr('sensor.udm_wan_config_raw', 'data') %}
+            {% set data_valid = data is iterable and (data | length) > 0 %}
+
+            {% if data_valid %}
+              {% set wan1 = data | selectattr('wan_networkgroup', 'equalto', 'WAN') | list | first %}
+              {% set wan2 = data | selectattr('wan_networkgroup', 'equalto', 'WAN2') | list | first %}
+              {% set wan1_name = wan1.name if wan1 else 'WAN1' %}
+              {% set wan2_name = wan2.name if wan2 else 'WAN2' %}
+            {% elif this is defined and this.attributes is defined %}
+              {% set wan1_name = this.attributes.get('wan1_name', 'WAN1') %}
+              {% set wan2_name = this.attributes.get('wan2_name', 'WAN2') %}
+            {% else %}
+              {% set wan1_name = 'WAN1' %}
+              {% set wan2_name = 'WAN2' %}
+            {% endif %}
+
+            {% set health = state_attr('sensor.udm_wan_health_raw', 'uptime_stats') %}
+            {% if health and health.WAN is defined %}
+              {% set wan1_latency = health.WAN.latency_average | float(0) %}
+            {% elif this is defined and this.attributes is defined %}
+              {% set wan1_latency = this.attributes.get('wan1_latency', 0) | float(0) %}
+            {% else %}
+              {% set wan1_latency = 0 %}
+            {% endif %}
+
+            {% if health and health.WAN2 is defined %}
+              {% set wan2_latency = health.WAN2.latency_average | float(0) %}
+            {% elif this is defined and this.attributes is defined %}
+              {% set wan2_latency = this.attributes.get('wan2_latency', 0) | float(0) %}
+            {% else %}
+              {% set wan2_latency = 0 %}
+            {% endif %}
+
+            {% set wan1_mbps = states('sensor.udm_wan1_total_mbps_smoothed') | float(0) %}
+            {% set wan2_mbps = states('sensor.udm_wan2_total_mbps_smoothed') | float(0) %}
+
+            {% if mode == 'BALANCED' %}
+              Load balanced: {{ wan1_name }} {{ wan1_mbps | round(1) }} Mbps ({{ wan1_latency | round(1) }}ms) | {{ wan2_name }} {{ wan2_mbps | round(1) }} Mbps ({{ wan2_latency | round(1) }}ms)
+            {% elif mode == 'WAN1' %}
+              {{ wan1_name }} active {{ wan1_mbps | round(1) }} Mbps ({{ wan1_latency | round(1) }}ms)
+            {% elif mode == 'WAN2' %}
+              {{ wan2_name }} active {{ wan2_mbps | round(1) }} Mbps ({{ wan2_latency | round(1) }}ms)
+            {% elif mode in ['STALE', 'UNKNOWN', 'OFFLINE'] %}
+              {{ mode }}
+            {% elif this is defined and this.attributes is defined and this.attributes.get('detail') not in [none, '', 'unknown', 'unavailable'] %}
+              {{ this.attributes.get('detail') }}
+            {% else %}
+              {{ mode }}
+            {% endif %}

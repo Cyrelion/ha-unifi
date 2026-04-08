@@ -1,0 +1,823 @@
+# packages/unifi_wan_snmp_traffic.yaml
+#
+# UDM Pro WAN Traffic via SNMP (v2c)
+# WAN1 (Telekom/Fiber)  = ifIndex 3  (eth9)
+# WAN2 (Starlink)       = ifIndex 5  (eth10)
+#
+# Counters:
+# ifHCInOctets  = 1.3.6.1.2.1.31.1.1.1.6.X
+# ifHCOutOctets = 1.3.6.1.2.1.31.1.1.1.10.X
+#
+# Output entities used by JARVIS / dashboards:
+# sensor.udm_wan1_rx_daily_gb
+# sensor.udm_wan1_tx_daily_gb
+# sensor.udm_wan2_rx_daily_gb
+# sensor.udm_wan2_tx_daily_gb
+# sensor.internet_routing_mode
+# sensor.internet_routing_detail
+
+sensor:
+  # SNMP RAW Counter64 Octets
+  - platform: snmp
+    name: "UDM WAN1 in octets"
+    unique_id: udm_wan1_in_octets
+    host: !secret udm_snmp_host
+    port: 161
+    community: !secret udm_snmp_community
+    version: "2c"
+    baseoid: 1.3.6.1.2.1.31.1.1.1.6.3
+    scan_interval: 30
+
+  - platform: snmp
+    name: "UDM WAN1 out octets"
+    unique_id: udm_wan1_out_octets
+    host: !secret udm_snmp_host
+    port: 161
+    community: !secret udm_snmp_community
+    version: "2c"
+    baseoid: 1.3.6.1.2.1.31.1.1.1.10.3
+    scan_interval: 30
+
+  - platform: snmp
+    name: "UDM WAN2 in octets"
+    unique_id: udm_wan2_in_octets
+    host: !secret udm_snmp_host
+    port: 161
+    community: !secret udm_snmp_community
+    version: "2c"
+    baseoid: 1.3.6.1.2.1.31.1.1.1.6.5
+    scan_interval: 30
+
+  - platform: snmp
+    name: "UDM WAN2 out octets"
+    unique_id: udm_wan2_out_octets
+    host: !secret udm_snmp_host
+    port: 161
+    community: !secret udm_snmp_community
+    version: "2c"
+    baseoid: 1.3.6.1.2.1.31.1.1.1.10.5
+    scan_interval: 30
+
+  # Derivative Bps from octet counters
+  - platform: derivative
+    name: "UDM WAN1 RX rate Bps"
+    unique_id: udm_wan1_rx_rate_bps
+    source: sensor.udm_wan1_in_octets
+    unit_time: s
+
+  - platform: derivative
+    name: "UDM WAN1 TX rate Bps"
+    unique_id: udm_wan1_tx_rate_bps
+    source: sensor.udm_wan1_out_octets
+    unit_time: s
+
+  - platform: derivative
+    name: "UDM WAN2 RX rate Bps"
+    unique_id: udm_wan2_rx_rate_bps
+    source: sensor.udm_wan2_in_octets
+    unit_time: s
+
+  - platform: derivative
+    name: "UDM WAN2 TX rate Bps"
+    unique_id: udm_wan2_tx_rate_bps
+    source: sensor.udm_wan2_out_octets
+    unit_time: s
+
+  # Smoothing for RX and TX Mbps
+  - platform: filter
+    name: "UDM WAN1 RX Mbps smoothed"
+    unique_id: udm_wan1_rx_mbps_smoothed
+    entity_id: sensor.udm_wan1_rx_rate_mbps
+    filters:
+      - filter: time_simple_moving_average
+        window_size: "00:02"
+        precision: 3
+
+  - platform: filter
+    name: "UDM WAN1 TX Mbps smoothed"
+    unique_id: udm_wan1_tx_mbps_smoothed
+    entity_id: sensor.udm_wan1_tx_rate_mbps
+    filters:
+      - filter: time_simple_moving_average
+        window_size: "00:02"
+        precision: 3
+
+  - platform: filter
+    name: "UDM WAN2 RX Mbps smoothed"
+    unique_id: udm_wan2_rx_mbps_smoothed
+    entity_id: sensor.udm_wan2_rx_rate_mbps
+    filters:
+      - filter: time_simple_moving_average
+        window_size: "00:02"
+        precision: 3
+
+  - platform: filter
+    name: "UDM WAN2 TX Mbps smoothed"
+    unique_id: udm_wan2_tx_mbps_smoothed
+    entity_id: sensor.udm_wan2_tx_rate_mbps
+    filters:
+      - filter: time_simple_moving_average
+        window_size: "00:02"
+        precision: 3
+
+  # Smoothed combined RX/TX
+  - platform: filter
+    name: "Internet Total RX smoothed"
+    unique_id: internet_total_rx_smoothed
+    entity_id: sensor.internet_total_rx_rate
+    filters:
+      - filter: time_simple_moving_average
+        window_size: "00:02"
+        precision: 3
+
+  - platform: filter
+    name: "Internet Total TX smoothed"
+    unique_id: internet_total_tx_smoothed
+    entity_id: sensor.internet_total_tx_rate
+    filters:
+      - filter: time_simple_moving_average
+        window_size: "00:02"
+        precision: 3
+
+  # Derivative GB per hour from RAW GB
+  - platform: derivative
+    name: "UDM WAN1 RX rate GBh"
+    unique_id: udm_wan1_rx_rate_gbh
+    source: sensor.udm_wan1_rx_raw_gb
+    unit_time: h
+
+  - platform: derivative
+    name: "UDM WAN1 TX rate GBh"
+    unique_id: udm_wan1_tx_rate_gbh
+    source: sensor.udm_wan1_tx_raw_gb
+    unit_time: h
+
+  - platform: derivative
+    name: "UDM WAN2 RX rate GBh"
+    unique_id: udm_wan2_rx_rate_gbh
+    source: sensor.udm_wan2_rx_raw_gb
+    unit_time: h
+
+  - platform: derivative
+    name: "UDM WAN2 TX rate GBh"
+    unique_id: udm_wan2_tx_rate_gbh
+    source: sensor.udm_wan2_tx_raw_gb
+    unit_time: h
+
+  # Integration totals in GB
+  - platform: integration
+    name: "UDM WAN1 RX total GB"
+    unique_id: udm_wan1_rx_total_gb
+    source: sensor.udm_wan1_rx_rate_gbh_pos
+    method: trapezoidal
+    round: 3
+
+  - platform: integration
+    name: "UDM WAN1 TX total GB"
+    unique_id: udm_wan1_tx_total_gb
+    source: sensor.udm_wan1_tx_rate_gbh_pos
+    method: trapezoidal
+    round: 3
+
+  - platform: integration
+    name: "UDM WAN2 RX total GB"
+    unique_id: udm_wan2_rx_total_gb
+    source: sensor.udm_wan2_rx_rate_gbh_pos
+    method: trapezoidal
+    round: 3
+
+  - platform: integration
+    name: "UDM WAN2 TX total GB"
+    unique_id: udm_wan2_tx_total_gb
+    source: sensor.udm_wan2_tx_rate_gbh_pos
+    method: trapezoidal
+    round: 3
+
+
+template:
+    # Mbps sensors, trigger based, avoids stuck updates at 0.0 due to rounding
+  - trigger:
+      - platform: state
+        entity_id:
+          - sensor.udm_wan1_rx_rate_bps
+          - sensor.udm_wan1_tx_rate_bps
+          - sensor.udm_wan2_rx_rate_bps
+          - sensor.udm_wan2_tx_rate_bps
+    sensor:
+      - name: "UDM WAN1 RX rate"
+        unique_id: udm_wan1_rx_rate_mbps
+        unit_of_measurement: "Mbit/s"
+        state_class: measurement
+        icon: mdi:download-network
+        state: >
+          {% set bps = states('sensor.udm_wan1_rx_rate_bps') | float(0) %}
+          {{ ((bps * 8) / 1000000) | round(3) }}
+
+      - name: "UDM WAN1 TX rate"
+        unique_id: udm_wan1_tx_rate_mbps
+        unit_of_measurement: "Mbit/s"
+        state_class: measurement
+        icon: mdi:upload-network
+        state: >
+          {% set bps = states('sensor.udm_wan1_tx_rate_bps') | float(0) %}
+          {{ ((bps * 8) / 1000000) | round(3) }}
+
+      - name: "UDM WAN2 RX rate"
+        unique_id: udm_wan2_rx_rate_mbps
+        unit_of_measurement: "Mbit/s"
+        state_class: measurement
+        icon: mdi:download-network
+        state: >
+          {% set bps = states('sensor.udm_wan2_rx_rate_bps') | float(0) %}
+          {{ ((bps * 8) / 1000000) | round(3) }}
+
+      - name: "UDM WAN2 TX rate"
+        unique_id: udm_wan2_tx_rate_mbps
+        unit_of_measurement: "Mbit/s"
+        state_class: measurement
+        icon: mdi:upload-network
+        state: >
+          {% set bps = states('sensor.udm_wan2_tx_rate_bps') | float(0) %}
+          {{ ((bps * 8) / 1000000) | round(3) }}
+
+  - binary_sensor:
+      # Health / Updating
+      - name: "UDM WAN SNMP traffic updating"
+        unique_id: udm_wan_snmp_traffic_updating
+        state: >
+          {% set max_age = 300 %}
+          {% set now_ts = as_timestamp(now()) %}
+          {% set s = [
+            states.sensor.udm_wan1_in_octets,
+            states.sensor.udm_wan1_out_octets,
+            states.sensor.udm_wan2_in_octets,
+            states.sensor.udm_wan2_out_octets
+          ] %}
+          {% set ts = s
+            | map(attribute='last_updated')
+            | map('as_timestamp')
+            | map('float', 0)
+            | list %}
+          {{ (ts | select('gt', 0) | list | length) == 4 and ((now_ts - (ts | min)) < max_age) }}
+          
+      - name: "UDM WAN SNMP traffic healthy"
+        unique_id: udm_wan_snmp_traffic_healthy
+        state: >
+          {{ is_state('binary_sensor.udm_wan_snmp_traffic_updating', 'on')
+             and (states('sensor.udm_wan1_in_octets') not in ['unknown','unavailable',''])
+             and (states('sensor.udm_wan1_out_octets') not in ['unknown','unavailable',''])
+             and (states('sensor.udm_wan2_in_octets') not in ['unknown','unavailable',''])
+             and (states('sensor.udm_wan2_out_octets') not in ['unknown','unavailable','']) }}
+
+      # Freshness based on Bps sensors
+      - name: "UDM WAN1 Mbps fresh"
+        unique_id: udm_wan1_mbps_fresh
+        state: >
+          {% set max_age = 120 %}
+          {% set now_ts = as_timestamp(now()) %}
+          {% set rx_ts = as_timestamp(states.sensor.udm_wan1_rx_rate_bps.last_updated) if states.sensor.udm_wan1_rx_rate_bps is defined else 0 %}
+          {% set tx_ts = as_timestamp(states.sensor.udm_wan1_tx_rate_bps.last_updated) if states.sensor.udm_wan1_tx_rate_bps is defined else 0 %}
+          {{ rx_ts > 0 and tx_ts > 0 and (now_ts - rx_ts) < max_age and (now_ts - tx_ts) < max_age }}
+
+      - name: "UDM WAN2 Mbps fresh"
+        unique_id: udm_wan2_mbps_fresh
+        state: >
+          {% set max_age = 120 %}
+          {% set now_ts = as_timestamp(now()) %}
+          {% set rx_ts = as_timestamp(states.sensor.udm_wan2_rx_rate_bps.last_updated) if states.sensor.udm_wan2_rx_rate_bps is defined else 0 %}
+          {% set tx_ts = as_timestamp(states.sensor.udm_wan2_tx_rate_bps.last_updated) if states.sensor.udm_wan2_tx_rate_bps is defined else 0 %}
+          {{ rx_ts > 0 and tx_ts > 0 and (now_ts - rx_ts) < max_age and (now_ts - tx_ts) < max_age }}
+          
+  - sensor:
+      - name: "UDM WAN1 RX rate Bps pos"
+        unique_id: udm_wan1_rx_rate_bps_pos
+        unit_of_measurement: "B/s"
+        state: >
+          {{ [0, states('sensor.udm_wan1_rx_rate_bps')|float(0)] | max }}
+
+      - name: "UDM WAN1 TX rate Bps pos"
+        unique_id: udm_wan1_tx_rate_bps_pos
+        unit_of_measurement: "B/s"
+        state: >
+          {{ [0, states('sensor.udm_wan1_tx_rate_bps')|float(0)] | max }}
+
+      - name: "UDM WAN2 RX rate Bps pos"
+        unique_id: udm_wan2_rx_rate_bps_pos
+        unit_of_measurement: "B/s"
+        state: >
+          {{ [0, states('sensor.udm_wan2_rx_rate_bps')|float(0)] | max }}
+
+      - name: "UDM WAN2 TX rate Bps pos"
+        unique_id: udm_wan2_tx_rate_bps_pos
+        unit_of_measurement: "B/s"
+        state: >
+          {{ [0, states('sensor.udm_wan2_tx_rate_bps')|float(0)] | max }}
+  
+      # RAW GB since counter start
+      - name: "UDM WAN1 RX raw GB"
+        unique_id: udm_wan1_rx_raw_gb
+        unit_of_measurement: "GB"
+        device_class: data_size
+        state_class: measurement
+        state: >
+          {% set b = states('sensor.udm_wan1_in_octets') | float(0) %}
+          {{ (b / 1000000000) | round(6) }}
+
+      - name: "UDM WAN1 TX raw GB"
+        unique_id: udm_wan1_tx_raw_gb
+        unit_of_measurement: "GB"
+        device_class: data_size
+        state_class: measurement
+        state: >
+          {% set b = states('sensor.udm_wan1_out_octets') | float(0) %}
+          {{ (b / 1000000000) | round(6) }}
+
+      - name: "UDM WAN2 RX raw GB"
+        unique_id: udm_wan2_rx_raw_gb
+        unit_of_measurement: "GB"
+        device_class: data_size
+        state_class: measurement
+        state: >
+          {% set b = states('sensor.udm_wan2_in_octets') | float(0) %}
+          {{ (b / 1000000000) | round(6) }}
+
+      - name: "UDM WAN2 TX raw GB"
+        unique_id: udm_wan2_tx_raw_gb
+        unit_of_measurement: "GB"
+        device_class: data_size
+        state_class: measurement
+        state: >
+          {% set b = states('sensor.udm_wan2_out_octets') | float(0) %}
+          {{ (b / 1000000000) | round(6) }}
+
+      # Clamp negative derivative after counter reset
+      - name: "UDM WAN1 RX rate GBh pos"
+        unique_id: udm_wan1_rx_rate_gbh_pos
+        unit_of_measurement: "GB/h"
+        state_class: measurement
+        state: >
+          {{ [0, (states('sensor.udm_wan1_rx_rate_gbh') | float(0))] | max }}
+
+      - name: "UDM WAN1 TX rate GBh pos"
+        unique_id: udm_wan1_tx_rate_gbh_pos
+        unit_of_measurement: "GB/h"
+        state_class: measurement
+        state: >
+          {{ [0, (states('sensor.udm_wan1_tx_rate_gbh') | float(0))] | max }}
+
+      - name: "UDM WAN2 RX rate GBh pos"
+        unique_id: udm_wan2_rx_rate_gbh_pos
+        unit_of_measurement: "GB/h"
+        state_class: measurement
+        state: >
+          {{ [0, (states('sensor.udm_wan2_rx_rate_gbh') | float(0))] | max }}
+
+      - name: "UDM WAN2 TX rate GBh pos"
+        unique_id: udm_wan2_tx_rate_gbh_pos
+        unit_of_measurement: "GB/h"
+        state_class: measurement
+        state: >
+          {{ [0, (states('sensor.udm_wan2_tx_rate_gbh') | float(0))] | max }}
+
+      # Totals in Mbps
+      - name: "UDM WAN1 total Mbps"
+        unique_id: udm_wan1_total_mbps
+        unit_of_measurement: "Mbit/s"
+        state_class: measurement
+        icon: mdi:speedometer
+        state: >
+          {{ (states('sensor.udm_wan1_rx_rate_mbps_pos')|float(0) + states('sensor.udm_wan1_tx_rate_mbps_pos')|float(0)) | round(3) }}
+
+      - name: "UDM WAN2 total Mbps"
+        unique_id: udm_wan2_total_mbps
+        unit_of_measurement: "Mbit/s"
+        state_class: measurement
+        icon: mdi:speedometer
+        state: >
+          {{ (states('sensor.udm_wan2_rx_rate_mbps_pos')|float(0) + states('sensor.udm_wan2_tx_rate_mbps_pos')|float(0)) | round(3) }}
+
+      # Sane totals, stale guarded
+      - name: "UDM WAN1 total Mbps sane"
+        unique_id: udm_wan1_total_mbps_sane
+        unit_of_measurement: "Mbit/s"
+        state_class: measurement
+        icon: mdi:shield-check
+        state: >
+          {% if is_state('binary_sensor.udm_wan1_mbps_fresh','on') %}
+            {{ states('sensor.udm_wan1_total_mbps') | float(0) }}
+          {% else %}
+            0
+          {% endif %}
+        attributes:
+          stale: "{{ is_state('binary_sensor.udm_wan1_mbps_fresh','off') }}"
+          age_rx_sec: >-
+            {% set ts = as_timestamp(states.sensor.udm_wan1_rx_rate_bps.last_updated) if states.sensor.udm_wan1_rx_rate_bps is defined else 0 %}
+            {% if ts > 0 %} {{ (as_timestamp(now()) - ts) | round(0) }} {% else %} 999999 {% endif %}
+          age_tx_sec: >-
+            {% set ts = as_timestamp(states.sensor.udm_wan1_tx_rate_bps.last_updated) if states.sensor.udm_wan1_tx_rate_bps is defined else 0 %}
+            {% if ts > 0 %} {{ (as_timestamp(now()) - ts) | round(0) }} {% else %} 999999 {% endif %}
+
+      - name: "UDM WAN2 total Mbps sane"
+        unique_id: udm_wan2_total_mbps_sane
+        unit_of_measurement: "Mbit/s"
+        state_class: measurement
+        icon: mdi:shield-check
+        state: >
+          {% if is_state('binary_sensor.udm_wan2_mbps_fresh','on') %}
+            {{ states('sensor.udm_wan2_total_mbps') | float(0) }}
+          {% else %}
+            0
+          {% endif %}
+        attributes:
+          stale: "{{ is_state('binary_sensor.udm_wan2_mbps_fresh','off') }}"
+          age_rx_sec: >-
+            {% set ts = as_timestamp(states.sensor.udm_wan2_rx_rate_bps.last_updated) if states.sensor.udm_wan2_rx_rate_bps is defined else 0 %}
+            {% if ts > 0 %} {{ (as_timestamp(now()) - ts) | round(0) }} {% else %} 999999 {% endif %}
+          age_tx_sec: >-
+            {% set ts = as_timestamp(states.sensor.udm_wan2_rx_rate_bps.last_updated) if states.sensor.udm_wan2_rx_rate_bps is defined else 0 %}
+            {% if ts > 0 %} {{ (as_timestamp(now()) - ts) | round(0) }} {% else %} 999999 {% endif %}
+
+
+      # Total Mbps smoothed, built from RX and TX smoothed, stale guarded
+      - name: "UDM WAN1 total Mbps smoothed"
+        unique_id: udm_wan1_total_mbps_smoothed
+        unit_of_measurement: "Mbit/s"
+        state_class: measurement
+        icon: mdi:speedometer
+        state: >
+          {% set rx = states('sensor.udm_wan1_rx_mbps_smoothed') | float(0) %}
+          {% set tx = states('sensor.udm_wan1_tx_mbps_smoothed') | float(0) %}
+          {% if is_state('binary_sensor.udm_wan1_mbps_fresh','on') %}
+            {{ (rx + tx) | round(3) }}
+          {% else %}
+            0
+          {% endif %}
+
+      - name: "UDM WAN2 total Mbps smoothed"
+        unique_id: udm_wan2_total_mbps_smoothed
+        unit_of_measurement: "Mbit/s"
+        state_class: measurement
+        icon: mdi:speedometer
+        state: >
+          {% set rx = states('sensor.udm_wan2_rx_mbps_smoothed') | float(0) %}
+          {% set tx = states('sensor.udm_wan2_tx_mbps_smoothed') | float(0) %}
+          {% if is_state('binary_sensor.udm_wan2_mbps_fresh','on') %}
+            {{ (rx + tx) | round(3) }}
+          {% else %}
+            0
+          {% endif %}
+
+      - name: "Internet total RX rate"
+        unique_id: internet_total_rx_rate
+        unit_of_measurement: "Mbit/s"
+        state_class: measurement
+        state: >
+          {{ (states('sensor.udm_wan1_rx_rate_mbps')|float(0) +
+              states('sensor.udm_wan2_rx_rate_mbps')|float(0)) | round(3) }}
+
+      - name: "Internet total TX rate"
+        unique_id: internet_total_tx_rate
+        unit_of_measurement: "Mbit/s"
+        state_class: measurement
+        state: >
+          {{ (states('sensor.udm_wan1_tx_rate_mbps')|float(0) +
+              states('sensor.udm_wan2_tx_rate_mbps')|float(0)) | round(3) }}
+
+      # Convenience totals in GB
+      - name: "UDM WAN1 total GB"
+        unique_id: udm_wan1_total_gb
+        unit_of_measurement: "GB"
+        device_class: data_size
+        state_class: total_increasing
+        state: >
+          {{ (states('sensor.udm_wan1_rx_total_gb') | float(0) + states('sensor.udm_wan1_tx_total_gb') | float(0)) | round(3) }}
+
+      - name: "UDM WAN2 total GB"
+        unique_id: udm_wan2_total_gb
+        unit_of_measurement: "GB"
+        device_class: data_size
+        state_class: total_increasing
+        state: >
+          {{ (states('sensor.udm_wan2_rx_total_gb') | float(0) + states('sensor.udm_wan2_tx_total_gb') | float(0)) | round(3) }}
+
+      - name: "Internet total Mbps"
+        unique_id: internet_total_mbps
+        unit_of_measurement: "Mbit/s"
+        state_class: measurement
+        icon: mdi:sum
+        state: >
+          {% set w1 = states('sensor.udm_wan1_total_mbps_smoothed') | float(0) %}
+          {% set w2 = states('sensor.udm_wan2_total_mbps_smoothed') | float(0) %}
+          {{ (w1 + w2) | round(3) }}
+
+      - name: WAN Download Daily
+        unique_id: udm_wan_download_daily_gb
+        unit_of_measurement: GB
+        state_class: total
+        state: >-
+          {% set a = states('sensor.udm_wan1_rx_daily_gb') %}
+          {% set b = states('sensor.udm_wan2_rx_daily_gb') %}
+          {% if a in ['unknown','unavailable','none',''] or b in ['unknown','unavailable','none',''] %}
+            {{ 'unknown' }}
+          {% else %}
+            {{ (a | float + b | float) | round(3) }}
+          {% endif %}
+
+      - name: WAN Download Weekly
+        unique_id: udm_wan_download_weekly_gb
+        unit_of_measurement: GB
+        state_class: total  
+        state: >-
+          {% set a = states('sensor.udm_wan1_rx_weekly_gb') %}
+          {% set b = states('sensor.udm_wan2_rx_weekly_gb') %}
+          {% if a in ['unknown','unavailable','none',''] or b in ['unknown','unavailable','none',''] %}
+            {{ 'unknown' }}
+          {% else %}
+            {{ (a | float + b | float) | round(3) }}
+          {% endif %}
+
+      - name: WAN Download Monthly
+        unique_id: udm_wan_download_monthly_gb
+        unit_of_measurement: GB
+        state_class: total
+        state: >-
+          {% set a = states('sensor.udm_wan1_rx_monthly_gb') %}
+          {% set b = states('sensor.udm_wan2_rx_monthly_gb') %}
+          {% if a in ['unknown','unavailable','none',''] or b in ['unknown','unavailable','none',''] %}
+            {{ 'unknown' }}
+          {% else %}
+            {{ (a | float + b | float) | round(3) }}
+          {% endif %}
+
+      - name: WAN Download Yearly
+        unique_id: udm_wan_download_yearly_gb
+        unit_of_measurement: GB
+        state_class: total
+        state: >-
+          {% set a = states('sensor.udm_wan1_rx_yearly_gb') %}
+          {% set b = states('sensor.udm_wan2_rx_yearly_gb') %}
+          {% if a in ['unknown','unavailable','none',''] or b in ['unknown','unavailable','none',''] %}
+            {{ 'unknown' }}
+          {% else %}
+            {{ (a | float + b | float) | round(3) }}
+          {% endif %}
+
+      - name: WAN Upload Daily
+        unique_id: udm_wan_upload_daily_gb
+        unit_of_measurement: GB
+        state_class: total
+        state: >-
+          {% set a = states('sensor.udm_wan1_tx_daily_gb') %}
+          {% set b = states('sensor.udm_wan2_tx_daily_gb') %}
+          {% if a in ['unknown','unavailable','none',''] or b in ['unknown','unavailable','none',''] %}
+            {{ 'unknown' }}
+          {% else %}
+            {{ (a | float + b | float) | round(3) }}
+          {% endif %}
+
+      - name: WAN Upload Weekly
+        unique_id: udm_wan_upload_weekly_gb
+        unit_of_measurement: GB
+        state_class: total
+        state: >-
+          {% set a = states('sensor.udm_wan1_tx_weekly_gb') %}
+          {% set b = states('sensor.udm_wan2_tx_weekly_gb') %}
+          {% if a in ['unknown','unavailable','none',''] or b in ['unknown','unavailable','none',''] %}
+            {{ 'unknown' }}
+          {% else %}
+            {{ (a | float + b | float) | round(3) }}
+          {% endif %}
+
+      - name: WAN Upload Monthly
+        unique_id: udm_wan_upload_monthly_gb
+        unit_of_measurement: GB
+        state_class: total
+        state: >-
+          {% set a = states('sensor.udm_wan1_tx_monthly_gb') %}
+          {% set b = states('sensor.udm_wan2_tx_monthly_gb') %}
+          {% if a in ['unknown','unavailable','none',''] or b in ['unknown','unavailable','none',''] %}
+            {{ 'unknown' }}
+          {% else %}
+            {{ (a | float + b | float) | round(3) }}
+          {% endif %}
+
+      - name: WAN Upload Yearly
+        unique_id: udm_wan_upload_yearly_gb
+        unit_of_measurement: GB
+        state_class: total
+        state: >-
+          {% set a = states('sensor.udm_wan1_tx_yearly_gb') %}
+          {% set b = states('sensor.udm_wan2_tx_yearly_gb') %}
+          {% if a in ['unknown','unavailable','none',''] or b in ['unknown','unavailable','none',''] %}
+            {{ 'unknown' }}
+          {% else %}
+            {{ (a | float + b | float) | round(3) }}
+          {% endif %}
+
+      - name: WAN Total Traffic Daily
+        unique_id: udm_wan_total_daily_gb
+        unit_of_measurement: GB
+        state_class: total
+        state: >-
+          {% set a = states('sensor.udm_wan1_total_daily_gb') %}
+          {% set b = states('sensor.udm_wan2_total_daily_gb') %}
+          {% if a in ['unknown','unavailable','none',''] or b in ['unknown','unavailable','none',''] %}
+            {{ 'unknown' }}
+          {% else %}
+            {{ (a | float + b | float) | round(3) }}
+          {% endif %}
+
+      - name: WAN Total Traffic Weekly
+        unique_id: udm_wan_total_weekly_gb
+        unit_of_measurement: GB
+        state_class: total
+        state: >-
+          {% set a = states('sensor.udm_wan1_total_weekly_gb') %}
+          {% set b = states('sensor.udm_wan2_total_weekly_gb') %}
+          {% if a in ['unknown','unavailable','none',''] or b in ['unknown','unavailable','none',''] %}
+            {{ 'unknown' }}
+          {% else %}
+            {{ (a | float + b | float) | round(3) }}
+          {% endif %}
+
+      - name: WAN Total Traffic Monthly
+        unique_id: udm_wan_total_monthly_gb
+        unit_of_measurement: GB
+        state_class: total
+        state: >-
+          {% set a = states('sensor.udm_wan1_total_monthly_gb') %}
+          {% set b = states('sensor.udm_wan2_total_monthly_gb') %}
+          {% if a in ['unknown','unavailable','none',''] or b in ['unknown','unavailable','none',''] %}
+            {{ 'unknown' }}
+          {% else %}
+            {{ (a | float + b | float) | round(3) }}
+          {% endif %}
+
+      - name: WAN Total Traffic Yearly
+        unique_id: udm_wan_total_yearly_gb
+        unit_of_measurement: GB
+        state_class: total
+        state: >-
+          {% set a = states('sensor.udm_wan1_total_yearly_gb') %}
+          {% set b = states('sensor.udm_wan2_total_yearly_gb') %}
+          {% if a in ['unknown','unavailable','none',''] or b in ['unknown','unavailable','none',''] %}
+            {{ 'unknown' }}
+          {% else %}
+            {{ (a | float + b | float) | round(3) }}
+          {% endif %}
+
+utility_meter:
+  # WAN1 Download
+  udm_wan1_rx_daily_gb:
+    name: WAN1 Download Daily
+    unique_id: udm_wan1_rx_daily_gb
+    source: sensor.udm_wan1_rx_total_gb
+    cycle: daily
+
+  udm_wan1_rx_weekly_gb:
+    name: WAN1 Download Weekly
+    unique_id: udm_wan1_rx_weekly_gb
+    source: sensor.udm_wan1_rx_total_gb
+    cycle: weekly
+
+  udm_wan1_rx_monthly_gb:
+    name: WAN1 Download Monthly
+    unique_id: udm_wan1_rx_monthly_gb
+    source: sensor.udm_wan1_rx_total_gb
+    cycle: monthly
+
+  udm_wan1_rx_yearly_gb:
+    name: WAN1 Download Yearly
+    unique_id: udm_wan1_rx_yearly_gb
+    source: sensor.udm_wan1_rx_total_gb
+    cycle: yearly
+
+
+  # WAN1 Upload
+  udm_wan1_tx_daily_gb:
+    name: WAN1 Upload Daily
+    unique_id: udm_wan1_tx_daily_gb
+    source: sensor.udm_wan1_tx_total_gb
+    cycle: daily
+
+  udm_wan1_tx_weekly_gb:
+    name: WAN1 Upload Weekly
+    unique_id: udm_wan1_tx_weekly_gb
+    source: sensor.udm_wan1_tx_total_gb
+    cycle: weekly
+
+  udm_wan1_tx_monthly_gb:
+    name: WAN1 Upload Monthly
+    unique_id: udm_wan1_tx_monthly_gb
+    source: sensor.udm_wan1_tx_total_gb
+    cycle: monthly
+
+  udm_wan1_tx_yearly_gb:
+    name: WAN1 Upload Yearly
+    unique_id: udm_wan1_tx_yearly_gb
+    source: sensor.udm_wan1_tx_total_gb
+    cycle: yearly
+
+
+  # WAN1 Total
+  udm_wan1_total_daily_gb:
+    name: WAN1 Total Traffic Daily
+    unique_id: udm_wan1_total_daily_gb
+    source: sensor.udm_wan1_total_gb
+    cycle: daily
+
+  udm_wan1_total_weekly_gb:
+    name: WAN1 Total Traffic Weekly
+    unique_id: udm_wan1_total_weekly_gb
+    source: sensor.udm_wan1_total_gb
+    cycle: weekly
+
+  udm_wan1_total_monthly_gb:
+    name: WAN1 Total Traffic Monthly
+    unique_id: udm_wan1_total_monthly_gb
+    source: sensor.udm_wan1_total_gb
+    cycle: monthly
+
+  udm_wan1_total_yearly_gb:
+    name: WAN1 Total Traffic Yearly
+    unique_id: udm_wan1_total_yearly_gb
+    source: sensor.udm_wan1_total_gb
+    cycle: yearly
+
+
+  # WAN2 Download
+  udm_wan2_rx_daily_gb:
+    name: WAN2 Download Daily
+    unique_id: udm_wan2_rx_daily_gb
+    source: sensor.udm_wan2_rx_total_gb
+    cycle: daily
+
+  udm_wan2_rx_weekly_gb:
+    name: WAN2 Download Weekly
+    unique_id: udm_wan2_rx_weekly_gb
+    source: sensor.udm_wan2_rx_total_gb
+    cycle: weekly
+
+  udm_wan2_rx_monthly_gb:
+    name: WAN2 Download Monthly
+    unique_id: udm_wan2_rx_monthly_gb
+    source: sensor.udm_wan2_rx_total_gb
+    cycle: monthly
+
+  udm_wan2_rx_yearly_gb:
+    name: WAN2 Download Yearly
+    unique_id: udm_wan2_rx_yearly_gb
+    source: sensor.udm_wan2_rx_total_gb
+    cycle: yearly
+
+
+  # WAN2 Upload
+  udm_wan2_tx_daily_gb:
+    name: WAN2 Upload Daily
+    unique_id: udm_wan2_tx_daily_gb
+    source: sensor.udm_wan2_tx_total_gb
+    cycle: daily
+
+  udm_wan2_tx_weekly_gb:
+    name: WAN2 Upload Weekly
+    unique_id: udm_wan2_tx_weekly_gb
+    source: sensor.udm_wan2_tx_total_gb
+    cycle: weekly
+
+  udm_wan2_tx_monthly_gb:
+    name: WAN2 Upload Monthly
+    unique_id: udm_wan2_tx_monthly_gb
+    source: sensor.udm_wan2_tx_total_gb
+    cycle: monthly
+
+  udm_wan2_tx_yearly_gb:
+    name: WAN2 Upload Yearly
+    unique_id: udm_wan2_tx_yearly_gb
+    source: sensor.udm_wan2_tx_total_gb
+    cycle: yearly
+
+
+  # WAN2 Total
+  udm_wan2_total_daily_gb:
+    name: WAN2 Total Traffic Daily
+    unique_id: udm_wan2_total_daily_gb
+    source: sensor.udm_wan2_total_gb
+    cycle: daily
+
+  udm_wan2_total_weekly_gb:
+    name: WAN2 Total Traffic Weekly
+    unique_id: udm_wan2_total_weekly_gb
+    source: sensor.udm_wan2_total_gb
+    cycle: weekly
+
+  udm_wan2_total_monthly_gb:
+    name: WAN2 Total Traffic Monthly
+    unique_id: udm_wan2_total_monthly_gb
+    source: sensor.udm_wan2_total_gb
+    cycle: monthly
+
+  udm_wan2_total_yearly_gb:
+    name: WAN2 Total Traffic Yearly
+    unique_id: udm_wan2_total_yearly_gb
+    source: sensor.udm_wan2_total_gb
+    cycle: yearly

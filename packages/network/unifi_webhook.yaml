@@ -1,0 +1,132 @@
+automation:
+  - id: udm_alarm_manager_wan_webhook_debug
+    alias: UDM Alarm Manager WAN webhook debug
+    mode: queued
+    trigger:
+      - platform: webhook
+        webhook_id: !secret udm_alarm_manager_wan_debug_webhook_id
+        allowed_methods:
+          - POST
+          - GET
+        local_only: false
+
+    action:
+      - service: persistent_notification.create
+        data:
+          title: UDM WAN Webhook Debug
+          message: >-
+            JSON:
+            {{ trigger.json if trigger.json is defined else 'none' }}
+
+            DATA:
+            {{ trigger.data if trigger.data is defined else 'none' }}
+
+            QUERY:
+            {{ trigger.query if trigger.query is defined else 'none' }}
+
+  - id: udm_alarm_manager_wan_webhook
+    alias: UDM Alarm Manager WAN webhook
+    mode: queued
+    trigger:
+      - platform: webhook
+        webhook_id: !secret udm_alarm_manager_wan_webhook_id
+        allowed_methods:
+          - POST
+          - GET
+        local_only: false
+
+    variables:
+      p: "{{ trigger.json if trigger.json is defined and trigger.json else dict() }}"
+      params: "{{ p.parameters if p.parameters is defined else dict() }}"
+
+      event_name: "{{ p.name | default('', true) }}"
+      event_message: "{{ p.message | default('', true) }}"
+
+      wan_id_raw: "{{ params.UNIFIwanId | default('', true) }}"
+      wan_name_raw: "{{ params.UNIFIwanName | default('', true) }}"
+      wan_isp_raw: "{{ params.UNIFIwanIsp | default('', true) }}"
+
+      wan_id: >
+        {% set w = wan_id_raw | upper %}
+        {% if w in ['WAN','WAN1'] %}
+          WAN1
+        {% elif w == 'WAN2' %}
+          WAN2
+        {% else %}
+          UNKNOWN
+        {% endif %}
+
+      is_down: >
+        {% set t = (event_name ~ ' ' ~ event_message) | lower %}
+        {{ 'internet down' in t or ' is down' in t }}
+
+      is_up: >
+        {% set t = (event_name ~ ' ' ~ event_message) | lower %}
+        {{ 'internet restored' in t or 'restored' in t or ' is up' in t }}
+
+      notify_text: >
+        {% if is_down %}
+          {{ wan_id }} ausgefallen {{ wan_name_raw }} {{ wan_isp_raw }}
+        {% elif is_up %}
+          {{ wan_id }} wiederhergestellt {{ wan_name_raw }} {{ wan_isp_raw }}
+        {% else %}
+          UDM WAN Event {{ event_name }} {{ wan_id }} {{ wan_name_raw }}
+        {% endif %}
+
+    action:
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.udm_last_wan_event
+        data:
+          value: "{{ event_name[:255] if event_name else 'unknown' }}"
+
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.udm_last_wan_name
+        data:
+          value: "{{ wan_name_raw[:100] if wan_name_raw else wan_id }}"
+
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.udm_last_wan_message
+        data:
+          value: "{{ event_message[:255] if event_message else 'n/a' }}"
+
+      - service: input_datetime.set_datetime
+        target:
+          entity_id: input_datetime.udm_last_wan_event_time
+        data:
+          datetime: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
+
+      - choose:
+          - conditions:
+              - condition: template
+                value_template: "{{ is_down and wan_id == 'WAN1' }}"
+            sequence:
+              - service: counter.increment
+                target:
+                  entity_id: counter.wan1_outages_today
+
+          - conditions:
+              - condition: template
+                value_template: "{{ is_down and wan_id == 'WAN2' }}"
+            sequence:
+              - service: counter.increment
+                target:
+                  entity_id: counter.wan2_outages_today
+
+      - event: unifi_network_monitor_notification
+        event_data:
+          title: UDM WAN Event
+          severity: "{{ 'warning' if is_down else 'info' }}"
+          source: udm_alarm_manager_wan_webhook
+          message: "{{ notify_text }}"
+          push_tag: udm_wan_event
+
+      - service: shell_command.wan_event_history_add
+        data:
+          ts: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
+          wan: "{{ wan_id }}"
+          wan_name: "{{ wan_name_raw if wan_name_raw else wan_id }}"
+          event: "{{ event_name }}"
+          message: "{{ event_message }}"

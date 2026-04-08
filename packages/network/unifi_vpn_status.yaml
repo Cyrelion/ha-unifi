@@ -1,0 +1,198 @@
+command_line:
+  - sensor:
+      name: UDM VPN Status Raw
+      unique_id: udm_vpn_status_raw
+      command: "/config/scripts/get_vpn_status.sh"
+      command_timeout: 30
+      scan_interval: 30
+      value_template: "{{ value_json.summary.active_count | int(0) }}"
+      json_attributes:
+        - summary
+        - data
+        - raw
+        - raw_remote
+        - raw_teleport_candidates
+        - raw_teleport_candidates_integration
+        - raw_teleport_candidates_legacy
+        - meta
+      icon: mdi:vpn
+
+template:
+  - sensor:
+      - name: UDM VPN Active Count
+        unique_id: udm_vpn_active_count
+        unit_of_measurement: "clients"
+        icon: mdi:vpn
+        state: >
+          {% set s = state_attr('sensor.udm_vpn_status_raw', 'summary') or {} %}
+          {{ s.get('active_count', 0) | int(0) }}
+        availability: >
+          {{ state_attr('sensor.udm_vpn_status_raw', 'summary') is not none }}
+
+      - name: UDM VPN Total Count
+        unique_id: udm_vpn_total_count
+        unit_of_measurement: "clients"
+        icon: mdi:counter
+        state: >
+          {% set s = state_attr('sensor.udm_vpn_status_raw', 'summary') or {} %}
+          {{ s.get('total_count', 0) | int(0) }}
+        availability: >
+          {{ state_attr('sensor.udm_vpn_status_raw', 'summary') is not none }}
+
+      - name: UDM VPN Remote User Count
+        unique_id: udm_vpn_remote_user_count
+        unit_of_measurement: "clients"
+        icon: mdi:account-network
+        state: >
+          {% set s = state_attr('sensor.udm_vpn_status_raw', 'summary') or {} %}
+          {{ s.get('remote_user_count', 0) | int(0) }}
+        availability: >
+          {{ state_attr('sensor.udm_vpn_status_raw', 'summary') is not none }}
+
+      - name: UDM VPN Teleport Count
+        unique_id: udm_vpn_teleport_count
+        unit_of_measurement: "clients"
+        icon: mdi:airplane
+        state: >
+          {% set s = state_attr('sensor.udm_vpn_status_raw', 'summary') or {} %}
+          {{ s.get('teleport_count', 0) | int(0) }}
+        availability: >
+          {{ state_attr('sensor.udm_vpn_status_raw', 'summary') is not none }}
+
+      - name: UDM VPN Source
+        unique_id: udm_vpn_source
+        icon: mdi:database-search
+        state: >
+          {% set s = state_attr('sensor.udm_vpn_status_raw', 'summary') or {} %}
+          {{ s.get('source', 'none') }}
+        availability: >
+          {{ state_attr('sensor.udm_vpn_status_raw', 'summary') is not none }}
+
+      - name: UDM VPN Connected Users
+        unique_id: udm_vpn_connected_users
+        icon: mdi:account-group
+        state: >
+          {% set s = state_attr('sensor.udm_vpn_status_raw', 'summary') or {} %}
+          {% set txt = s.get('connected_users', '') %}
+          {% if txt | length > 0 %}
+            {{ txt }}
+          {% else %}
+            none
+          {% endif %}
+        attributes:
+          full_text: >
+            {% set s = state_attr('sensor.udm_vpn_status_raw', 'summary') or {} %}
+            {{ s.get('connected_users', '') }}
+          users: >
+            {{ (state_attr('sensor.udm_vpn_status_raw', 'data') or []) | map(attribute='label') | list }}
+          raw_data: >
+            {{ state_attr('sensor.udm_vpn_status_raw', 'data') or [] }}
+          remote_users: >
+            {{ state_attr('sensor.udm_vpn_status_raw', 'raw_remote') or [] }}
+          teleport_users: >
+            {{ state_attr('sensor.udm_vpn_status_raw', 'raw_teleport_candidates_integration') or [] }}
+        availability: >
+          {{ state_attr('sensor.udm_vpn_status_raw', 'summary') is not none }}
+
+      - name: UDM VPN Endpoint HTTP
+        unique_id: udm_vpn_endpoint_http
+        icon: mdi:web
+        state: >
+          {% set m = state_attr('sensor.udm_vpn_status_raw', 'meta') or {} %}
+          {{ m.get('vpn_http', 'unknown') }}
+        attributes:
+          health_http: >
+            {% set m = state_attr('sensor.udm_vpn_status_raw', 'meta') or {} %}
+            {{ m.get('health_http', 'unknown') }}
+          clients_http: >
+            {% set m = state_attr('sensor.udm_vpn_status_raw', 'meta') or {} %}
+            {{ m.get('clients_http', 'unknown') }}
+          integration_clients_http: >
+            {% set m = state_attr('sensor.udm_vpn_status_raw', 'meta') or {} %}
+            {{ m.get('integration_clients_http', 'unknown') }}
+          stale: >
+            {% set m = state_attr('sensor.udm_vpn_status_raw', 'meta') or {} %}
+            {{ m.get('stale', none) }}
+        availability: >
+          {{ state_attr('sensor.udm_vpn_status_raw', 'meta') is not none }}
+
+  - binary_sensor:
+      - name: UDM VPN Active
+        unique_id: udm_vpn_active
+        icon: >
+          {% if is_state('binary_sensor.udm_vpn_active', 'on') %}
+            mdi:vpn
+          {% else %}
+            mdi:vpn-off
+          {% endif %}
+        state: >
+          {% set s = state_attr('sensor.udm_vpn_status_raw', 'summary') or {} %}
+          {{ s.get('active_count', 0) | int(0) > 0 }}
+        attributes:
+          connected_users: >
+            {% set s = state_attr('sensor.udm_vpn_status_raw', 'summary') or {} %}
+            {{ s.get('connected_users', '') }}
+        availability: >
+          {{ state_attr('sensor.udm_vpn_status_raw', 'summary') is not none }}
+
+      - name: UDM Teleport Active
+        unique_id: udm_teleport_active
+        icon: >
+          {% if is_state('binary_sensor.udm_teleport_active', 'on') %}
+            mdi:airplane
+          {% else %}
+            mdi:airplane-off
+          {% endif %}
+        state: >
+          {% set s = state_attr('sensor.udm_vpn_status_raw', 'summary') or {} %}
+          {{ s.get('teleport_count', 0) | int(0) > 0 }}
+        attributes:
+          users: >
+            {{ (state_attr('sensor.udm_vpn_status_raw', 'raw_teleport_candidates_integration') or []) | map(attribute='label') | list }}
+        availability: >
+          {{ state_attr('sensor.udm_vpn_status_raw', 'summary') is not none }}
+
+      - name: UDM Remote User VPN Active
+        unique_id: udm_remote_user_vpn_active
+        icon: >
+          {% if is_state('binary_sensor.udm_remote_user_vpn_active', 'on') %}
+            mdi:account-network
+          {% else %}
+            mdi:account-off-outline
+          {% endif %}
+        state: >
+          {% set s = state_attr('sensor.udm_vpn_status_raw', 'summary') or {} %}
+          {{ s.get('remote_user_count', 0) | int(0) > 0 }}
+        attributes:
+          users: >
+            {{ (state_attr('sensor.udm_vpn_status_raw', 'raw_remote') or []) | map(attribute='label') | list }}
+        availability: >
+          {{ state_attr('sensor.udm_vpn_status_raw', 'summary') is not none }}
+
+      - name: UDM VPN Endpoint Available
+        unique_id: udm_vpn_endpoint_available
+        icon: >
+          {% if is_state('binary_sensor.udm_vpn_endpoint_available', 'on') %}
+            mdi:lan-connect
+          {% else %}
+            mdi:lan-disconnect
+          {% endif %}
+        state: >
+          {% set s = state_attr('sensor.udm_vpn_status_raw', 'summary') or {} %}
+          {{ s.get('endpoint_available', false) }}
+        availability: >
+          {{ state_attr('sensor.udm_vpn_status_raw', 'summary') is not none }}
+
+      - name: UDM VPN Clients Endpoint Available
+        unique_id: udm_vpn_clients_endpoint_available
+        icon: >
+          {% if is_state('binary_sensor.udm_vpn_clients_endpoint_available', 'on') %}
+            mdi:server-network
+          {% else %}
+            mdi:server-network-off
+          {% endif %}
+        state: >
+          {% set s = state_attr('sensor.udm_vpn_status_raw', 'summary') or {} %}
+          {{ s.get('clients_endpoint_available', false) }}
+        availability: >
+          {{ state_attr('sensor.udm_vpn_status_raw', 'summary') is not none }}

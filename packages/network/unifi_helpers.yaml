@@ -1,0 +1,60 @@
+input_text:
+  udm_last_wan_event:
+    name: UDM Last WAN Event
+    max: 255
+
+  udm_last_wan_name:
+    name: UDM Last WAN Name
+    max: 100
+
+  udm_last_wan_message:
+    name: UDM Last WAN Message
+    max: 255
+
+input_datetime:
+  udm_last_wan_event_time:
+    name: UDM Last WAN Event Time
+    has_date: true
+    has_time: true
+
+input_select:
+  wan1_type:
+    name: WAN1 Type
+    options:
+      - dsl
+      - fiber
+      - starlink
+
+  wan2_type:
+    name: WAN2 Type
+    options:
+      - dsl
+      - fiber
+      - starlink
+
+shell_command:
+  wan_event_history_add: >-
+    /config/scripts/wan_event_history_add.sh
+    "{{ ts }}"
+    "{{ wan }}"
+    "{{ wan_name }}"
+    "{{ event }}"
+    "{{ message | replace('"','\"') }}"
+
+  wan_event_history_clear: >-
+    /config/scripts/wan_event_history_clear.sh
+
+sensor:
+  - platform: statistics
+    name: WAN1 Latency Baseline
+    entity_id: sensor.wan1_latency_raw
+    state_characteristic: mean
+    max_age:
+      hours: 24
+
+  - platform: statistics
+    name: WAN2 Latency Baseline
+    entity_id: sensor.wan2_latency_raw
+    state_characteristic: mean
+    max_age:
+      hours: 24

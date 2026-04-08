@@ -1,0 +1,18 @@
+automation:
+  - id: unifi_network_monitor_default_notification_sink
+    alias: UniFi Network Monitor Default Notification Sink
+    mode: queued
+    trigger:
+      - platform: event
+        event_type: unifi_network_monitor_notification
+
+    action:
+      - service: persistent_notification.create
+        data:
+          title: >
+            {{ trigger.event.data.title if trigger.event.data.title is defined else 'UniFi / Internet Monitor' }}
+          message: >
+            {% set severity = trigger.event.data.severity if trigger.event.data.severity is defined else 'info' %}
+            {% set source = trigger.event.data.source if trigger.event.data.source is defined else 'unknown' %}
+            [{{ severity | upper }} | {{ source }}]
+            {{ trigger.event.data.message if trigger.event.data.message is defined else 'No message' }}
